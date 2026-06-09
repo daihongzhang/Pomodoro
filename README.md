@@ -1,10 +1,16 @@
 # 🍅 Pomodoro Timer — 桌面番茄钟
 
+[![GitHub Release](https://img.shields.io/github/v/release/daihongzhang/Pomodoro?style=flat&label=下载)](https://github.com/daihongzhang/Pomodoro/releases/latest)
+
 一个基于 **番茄工作法** 的桌面计时器应用，使用 Python + PySide6 (Qt for Python) 构建。
 
 > 番茄工作法：25 分钟专注工作 → 5 分钟短休息 → 每 4 个番茄后长休息 15 分钟。
 
 ---
+
+## 📥 快速下载
+
+前往 [Releases 页面](https://github.com/daihongzhang/Pomodoro/releases/latest) 下载 **Pomodoro.exe**，直接双击运行，无需安装任何环境。
 
 ## ✨ 功能
 
@@ -16,7 +22,7 @@
 - ⚙️ **可自定义** — 工作时长 / 短休息 / 长休息 / 长休息间隔，全部可调
 - 📌 **总在最前** — 可让窗口始终保持在其他窗口之上
 - 🖼 **单实例运行** — 只能启动一个实例，重复启动会激活已有窗口
-- 🪟 **Windows 原生体验** — 自定义任务栏图标 (AppUserModelID)、可打包为独立 `.exe`
+- 🪟 **Windows 原生体验** — 自定义任务栏图标 (AppUserModelID)
 
 ## 📸 截图
 
@@ -25,35 +31,6 @@
 | ![主界面](screenshots/main.png) | ![设置](screenshots/settings.png) |
 
 > 截图目录 `screenshots/` 尚未添加，可自行截取后放入。
-
----
-
-## 📦 安装
-
-### 环境要求
-
-- Python **3.11+**
-- 操作系统：Windows（当前版本主要面向 Windows；托盘等特性依赖平台）
-
-### 安装步骤
-
-```bash
-# 1. 克隆仓库
-git clone https://github.com/your-username/pomodoro.git
-cd pomodoro
-
-# 2. 安装依赖
-pip install -r requirements.txt
-
-# 3. 启动
-python main.py
-```
-
-### 一键启动（Windows）
-
-打包后双击 **`dist\Pomodoro.exe`** 即可运行，无需安装 Python 环境。
-
-开发阶段可双击 **`main.pyw`** — `.pyw` 后缀会自动用 `pythonw.exe` 运行，不会弹出命令行窗口。
 
 ---
 
@@ -103,7 +80,40 @@ python main.py
 
 ---
 
-## 📁 项目结构
+## 🔧 从源码构建
+
+### 环境要求
+
+- Python **3.11+**
+- Windows（当前版本主要面向 Windows；托盘等特性依赖平台）
+
+### 安装 & 运行
+
+```bash
+git clone https://github.com/daihongzhang/Pomodoro.git
+cd Pomodoro
+
+pip install -r requirements.txt
+
+python main.py
+```
+
+开发阶段也可直接双击 **`main.pyw`** — `.pyw` 后缀会自动用 `pythonw.exe` 运行，不会弹出命令行窗口。
+
+### 自行打包 exe
+
+```bash
+pip install pyinstaller
+
+pyinstaller --onefile --windowed --name "Pomodoro" ^
+    --icon "src/resources/tomato.ico" ^
+    --add-data "src/resources:src/resources" ^
+    --noconfirm main.pyw
+```
+
+输出到 `dist/Pomodoro.exe`。
+
+### 项目结构
 
 ```
 Pomodoro/
@@ -111,9 +121,6 @@ Pomodoro/
 ├── main.pyw                 # 入口（无控制台窗口）
 ├── requirements.txt         # 依赖：PySide6>=6.6
 ├── .gitignore
-│
-├── dist/                    # 打包输出（首次构建后生成）
-│   └── Pomodoro.exe         # 独立可执行文件
 │
 ├── data/                    # 运行时数据（自动生成）
 │   ├── settings.json        # 用户设置
@@ -147,27 +154,6 @@ Pomodoro/
 - **信号/槽** — `TimerWorker` 通过 Qt 信号与 UI 层解耦
 - **QSS 主题** — 纯 QSS 样式，无额外 CSS 框架依赖
 - **单实例** — 基于 `QLocalServer/QLocalSocket` 实现 IPC
-
----
-
-## 🔧 开发
-
-```bash
-# 克隆仓库
-git clone https://github.com/your-username/pomodoro.git
-cd pomodoro
-
-# 创建虚拟环境（可选但推荐）
-python -m venv venv
-source venv/bin/activate   # Linux/macOS
-venv\Scripts\activate      # Windows
-
-# 安装开发依赖
-pip install -r requirements.txt
-
-# 启动
-python main.py
-```
 
 ---
 
