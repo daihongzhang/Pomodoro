@@ -16,7 +16,7 @@
 - ⚙️ **可自定义** — 工作时长 / 短休息 / 长休息 / 长休息间隔，全部可调
 - 📌 **总在最前** — 可让窗口始终保持在其他窗口之上
 - 🖼 **单实例运行** — 只能启动一个实例，重复启动会激活已有窗口
-- 🪟 **Windows 原生体验** — 自定义任务栏图标 (AppUserModelID)、`.bat` 一键启动、可打包为独立 `.exe`
+- 🪟 **Windows 原生体验** — 自定义任务栏图标 (AppUserModelID)、可打包为独立 `.exe`
 
 ## 📸 截图
 
@@ -51,24 +51,9 @@ python main.py
 
 ### 一键启动（Windows）
 
-双击 **`番茄钟.bat`** 即可启动（无控制台窗口）。
+打包后双击 **`dist\Pomodoro.exe`** 即可运行，无需安装 Python 环境。
 
-或者双击 **`main.pyw`** — `.pyw` 后缀会自动用 `pythonw.exe` 运行，不会弹出命令行窗口。
-
-### 打包为独立 exe（推荐）
-
-```bash
-# 安装 PyInstaller
-pip install pyinstaller
-
-# 打包为单文件（输出到 dist/Pomodoro.exe）
-pyinstaller --onefile --windowed --name "Pomodoro" ^
-    --icon "src/resources/tomato.ico" ^
-    --add-data "src/resources:src/resources" ^
-    --noconfirm main.pyw
-```
-
-打包后可直接双击 **`dist\Pomodoro.exe`** 运行，无需安装 Python 环境。
+开发阶段可双击 **`main.pyw`** — `.pyw` 后缀会自动用 `pythonw.exe` 运行，不会弹出命令行窗口。
 
 ---
 
@@ -124,7 +109,6 @@ pyinstaller --onefile --windowed --name "Pomodoro" ^
 Pomodoro/
 ├── main.py                  # 入口（带控制台）
 ├── main.pyw                 # 入口（无控制台窗口）
-├── 番茄钟.bat               # Windows 一键启动
 ├── requirements.txt         # 依赖：PySide6>=6.6
 ├── .gitignore
 │

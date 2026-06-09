@@ -18,9 +18,9 @@ logs/
 .env
 .env.local
 
-# Build
-dist/
+# Build output
 build/
+dist/
 
 # IDE
 .vscode/
