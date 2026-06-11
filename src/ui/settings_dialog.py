@@ -1,10 +1,8 @@
 """Settings dialog for configuring Pomodoro durations and preferences."""
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox,
-    QCheckBox, QPushButton, QGroupBox, QFormLayout,
-    QDialogButtonBox, QWidget,
+    QDialog, QVBoxLayout, QHBoxLayout, QSpinBox,
+    QCheckBox, QComboBox, QPushButton, QGroupBox, QFormLayout,
 )
 
 from src.storage.settings import SettingsManager
@@ -73,6 +71,14 @@ class SettingsDialog(QDialog):
         self._chk_tray = QCheckBox("开始计时时自动最小化到托盘")
         behavior_layout.addWidget(self._chk_tray)
 
+        self._combo_close_action = QComboBox()
+        self._combo_close_action.addItem("每次询问", "ask")
+        self._combo_close_action.addItem("最小化到托盘", "minimize_to_tray")
+        self._combo_close_action.addItem("退出程序", "exit")
+        close_action_layout = QFormLayout()
+        close_action_layout.addRow("点击关闭按钮时:", self._combo_close_action)
+        behavior_layout.addLayout(close_action_layout)
+
         layout.addWidget(behavior_group)
 
         # --- Buttons ---
@@ -102,6 +108,9 @@ class SettingsDialog(QDialog):
         self._chk_top.setChecked(self._settings.get("always_on_top"))
         self._chk_sound.setChecked(self._settings.get("sound_enabled"))
         self._chk_tray.setChecked(self._settings.get("minimize_to_tray_on_start"))
+        close_action = self._settings.get("close_button_action")
+        close_action_index = self._combo_close_action.findData(close_action)
+        self._combo_close_action.setCurrentIndex(max(close_action_index, 0))
 
     def _on_save(self):
         """Validate and save settings, then close."""
@@ -113,5 +122,6 @@ class SettingsDialog(QDialog):
             always_on_top=self._chk_top.isChecked(),
             sound_enabled=self._chk_sound.isChecked(),
             minimize_to_tray_on_start=self._chk_tray.isChecked(),
+            close_button_action=self._combo_close_action.currentData(),
         )
         self.accept()

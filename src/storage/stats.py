@@ -4,8 +4,11 @@ import json
 from datetime import date
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+from src.storage import get_data_dir, migrate_old_data
+
+DATA_DIR = get_data_dir()
 STATS_FILE = DATA_DIR / "stats.json"
+OLD_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
 
 class StatsManager:
@@ -28,6 +31,9 @@ class StatsManager:
 
     def _load(self):
         """Load stats from JSON file."""
+        if not STATS_FILE.exists():
+            # Migration: copy old project-relative data if it exists
+            migrate_old_data(OLD_DATA_DIR, DATA_DIR)
         if not STATS_FILE.exists():
             self._stats = {}
             self._save()

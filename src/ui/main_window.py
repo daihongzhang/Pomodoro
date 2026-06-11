@@ -1,11 +1,13 @@
 """Main window of the Pomodoro timer application."""
 
+import sys
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QIcon, QPixmap, QPainter, QColor, QFont
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QMenuBar, QMenu, QSystemTrayIcon, QMessageBox,
-    QApplication, QSizePolicy, QFrame,
+    QPushButton, QCheckBox, QMenu, QSystemTrayIcon, QMessageBox,
+    QApplication, QSizePolicy,
 )
 
 from src.timer.state import TimerState, Phase
@@ -24,6 +26,7 @@ class MainWindow(QMainWindow):
         self._settings = SettingsManager()
         self._stats = StatsManager()
         self._worker = TimerWorker(self)
+        self._is_quitting = False
 
         self._setup_ui()
         self._setup_menu()
@@ -34,6 +37,8 @@ class MainWindow(QMainWindow):
         # Load geometry
         self.resize(360, 380)
         self.setMinimumSize(300, 320)
+
+        self._apply_always_on_top(self._settings.get("always_on_top"))
 
     # ---- UI Setup ----
 
@@ -141,7 +146,7 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
 
         self._act_quit = QAction("退出", self)
-        self._act_quit.triggered.connect(QApplication.instance().quit)
+        self._act_quit.triggered.connect(self._quit_app)
         file_menu.addAction(self._act_quit)
 
         # Help menu
@@ -188,7 +193,7 @@ class MainWindow(QMainWindow):
         tray_menu.addSeparator()
 
         self._act_tray_quit = QAction("退出程序", self)
-        self._act_tray_quit.triggered.connect(QApplication.instance().quit)
+        self._act_tray_quit.triggered.connect(self._quit_app)
         tray_menu.addAction(self._act_tray_quit)
 
         self._tray_icon.setContextMenu(tray_menu)
@@ -233,18 +238,28 @@ class MainWindow(QMainWindow):
         # Flash notification
         self._show_notification()
 
+        # Play sound if enabled
+        if self._settings.get("sound_enabled"):
+            self._play_sound()
+
         # Auto-start next phase after a brief delay
         QTimer.singleShot(1500, self._worker.start)
 
     def _on_start_clicked(self):
         """Handle start/pause button click."""
+        started = False
         match self._worker.state:
             case TimerState.IDLE | TimerState.FINISHED:
                 self._worker.start()
+                started = True
             case TimerState.RUNNING:
                 self._worker.pause()
             case TimerState.PAUSED:
                 self._worker.resume()
+                started = True
+
+        if started and self._settings.get("minimize_to_tray_on_start"):
+            self.hide()
 
     def _on_reset_clicked(self):
         """Handle reset button click."""
@@ -269,12 +284,7 @@ class MainWindow(QMainWindow):
 
     def _toggle_always_top(self, checked: bool):
         """Toggle window always-on-top."""
-        if checked:
-            self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
-        else:
-            self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint)
-        self._settings.set("always_on_top", checked)
-        self.show()  # need to re-show after changing flags
+        self._apply_always_on_top(checked, persist=True)
 
     def _open_settings(self):
         """Open the settings dialog."""
@@ -282,6 +292,29 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             self._worker.reload_durations()
             self._update_timer_display()
+            self._apply_always_on_top(self._settings.get("always_on_top"))
+
+    def _apply_always_on_top(self, checked: bool, persist: bool = False, force: bool = False):
+        """Apply the topmost flag only when it actually changes."""
+        checked = bool(checked)
+
+        if hasattr(self, "_act_always_top") and self._act_always_top.isChecked() != checked:
+            self._act_always_top.blockSignals(True)
+            self._act_always_top.setChecked(checked)
+            self._act_always_top.blockSignals(False)
+
+        if persist:
+            self._settings.set("always_on_top", checked)
+
+        current = bool(self.windowFlags() & Qt.WindowStaysOnTopHint)
+        if not force and current == checked:
+            return
+
+        self.setWindowFlag(Qt.WindowStaysOnTopHint, checked)
+        if self.isVisible():
+            self.show()
+            self.raise_()
+            self.activateWindow()
 
     def show_from_second_instance(self):
         """Called when a second-instance process asks us to show the window."""
@@ -297,6 +330,68 @@ class MainWindow(QMainWindow):
             self.show()
             self.raise_()
             self.activateWindow()
+
+    def _quit_app(self):
+        """Exit the application from explicit menu/tray commands."""
+        self._is_quitting = True
+        self._tray_icon.hide()
+        QApplication.instance().quit()
+
+    def _minimize_to_tray_from_close(self):
+        """Hide the window after the close button chooses tray behavior."""
+        self.hide()
+        self._tray_icon.showMessage(
+            "Pomodoro Timer",
+            "应用已最小化到系统托盘",
+            QSystemTrayIcon.Information,
+            2000,
+        )
+
+    def _ask_close_button_action(self) -> str:
+        """Ask what the window close button should do."""
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("关闭 Pomodoro Timer")
+        dialog.setText("请选择关闭按钮的操作")
+        dialog.setIcon(QMessageBox.Icon.Question)
+
+        minimize_button = dialog.addButton(
+            "最小化到托盘",
+            QMessageBox.ButtonRole.AcceptRole,
+        )
+        exit_button = dialog.addButton(
+            "退出程序",
+            QMessageBox.ButtonRole.DestructiveRole,
+        )
+        cancel_button = dialog.addButton(
+            "取消",
+            QMessageBox.ButtonRole.RejectRole,
+        )
+
+        remember_choice = QCheckBox("记住我的选择")
+        dialog.setCheckBox(remember_choice)
+        dialog.exec()
+
+        clicked_button = dialog.clickedButton()
+        if clicked_button == minimize_button:
+            action = "minimize_to_tray"
+        elif clicked_button == exit_button:
+            action = "exit"
+        elif clicked_button == cancel_button:
+            action = "cancel"
+        else:
+            action = "cancel"
+
+        if remember_choice.isChecked() and action in {"minimize_to_tray", "exit"}:
+            self._settings.set("close_button_action", action)
+
+        return action
+
+    def _get_close_button_action(self) -> str:
+        """Resolve the saved close-button action."""
+        action = self._settings.get("close_button_action")
+        if action in {"ask", "minimize_to_tray", "exit"}:
+            return action
+        return "ask"
 
     def _on_tray_activated(self, reason):
         """Handle tray icon activation (click)."""
@@ -322,6 +417,45 @@ class MainWindow(QMainWindow):
 
         # Flash window to get attention
         QApplication.alert(self, 3000)
+
+    def _play_sound(self):
+        """Play a system completion sound.
+
+        Priority order (Windows):
+          1. PlaySound("SystemAsterisk") — async, doesn't block the timer
+          2. MessageBeep(MB_ICONASTERISK)
+          3. QApplication.beep() — cross-platform Qt fallback
+
+        Non-Windows platforms skip directly to QApplication.beep().
+        All exceptions are swallowed — sound is best-effort and must
+        never affect timer operation or tray notification.
+        """
+        try:
+            if sys.platform == "win32":
+                import winsound
+
+                # 1. Play the system "Asterisk" sound asynchronously.
+                #    Async is important: timer ticks must not pause.
+                try:
+                    winsound.PlaySound(
+                        "SystemAsterisk",
+                        winsound.SND_ALIAS | winsound.SND_ASYNC,
+                    )
+                    return
+                except Exception:
+                    pass
+
+                # 2. Fallback: simple message beep
+                try:
+                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                    return
+                except Exception:
+                    pass
+
+            # 3. Last resort: Qt cross-platform beep
+            QApplication.beep()
+        except Exception:
+            pass  # best-effort; never crash the timer
 
     def _show_about(self):
         """Show about dialog."""
@@ -378,12 +512,22 @@ class MainWindow(QMainWindow):
     # ---- Window Events ----
 
     def closeEvent(self, event):
-        """Override close to minimize to tray instead of exiting."""
-        event.ignore()
-        self.hide()
-        self._tray_icon.showMessage(
-            "Pomodoro Timer",
-            "应用已最小化到系统托盘",
-            QSystemTrayIcon.Information,
-            2000,
-        )
+        """Handle the close button based on user preference."""
+        if self._is_quitting:
+            event.accept()
+            return
+
+        action = self._get_close_button_action()
+        if action == "ask":
+            action = self._ask_close_button_action()
+
+        if action == "minimize_to_tray":
+            event.ignore()
+            self._minimize_to_tray_from_close()
+        elif action == "exit":
+            self._is_quitting = True
+            self._tray_icon.hide()
+            event.accept()
+            QTimer.singleShot(0, QApplication.instance().quit)
+        else:
+            event.ignore()

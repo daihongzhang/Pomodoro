@@ -1,6 +1,6 @@
 """Timer worker - handles the countdown logic using QTimer."""
 
-from PySide6.QtCore import QObject, QTimer, Signal, Property
+from PySide6.QtCore import QObject, QTimer, Signal
 
 from src.timer.state import TimerState, Phase
 from src.storage.settings import SettingsManager

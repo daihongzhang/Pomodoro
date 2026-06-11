@@ -1,11 +1,13 @@
 """Settings manager - reads/writes settings.json with defaults."""
 
 import json
-import os
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+from src.storage import get_data_dir, migrate_old_data
+
+DATA_DIR = get_data_dir()
 SETTINGS_FILE = DATA_DIR / "settings.json"
+OLD_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
 DEFAULT_SETTINGS = {
     "work_duration": 25,        # minutes
@@ -15,6 +17,7 @@ DEFAULT_SETTINGS = {
     "always_on_top": False,
     "sound_enabled": True,
     "minimize_to_tray_on_start": False,
+    "close_button_action": "ask",
 }
 
 
@@ -38,6 +41,9 @@ class SettingsManager:
 
     def _load(self):
         """Load settings from JSON file, merging with defaults."""
+        if not SETTINGS_FILE.exists():
+            # Migration: copy old project-relative data if it exists
+            migrate_old_data(OLD_DATA_DIR, DATA_DIR)
         if not SETTINGS_FILE.exists():
             self._save()  # write defaults
             return
